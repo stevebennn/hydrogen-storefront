@@ -52,8 +52,22 @@ async function loadCriticalData({
     storefront.query(PRODUCT_QUERY, {
       variables: {handle, selectedOptions: getSelectedProductOptions(request)},
     }),
+
     // Add other queries here, so that they are loaded in parallel
   ]);
+
+  let completeTheLookProduct = null;
+
+  if (product?.metafield) {
+    completeTheLookProduct = (
+      await storefront.query(COMPLETE_THE_LOOK_PRODUCT_QUERY, {
+        variables: {
+          id: product.metafield.value,
+          selectedOptions: getSelectedProductOptions(request),
+        },
+      })
+    ).product;
+  }
 
   if (!product?.id) {
     throw new Response(null, {status: 404});
@@ -61,6 +75,7 @@ async function loadCriticalData({
 
   return {
     product,
+    completeTheLookProduct,
   };
 }
 
@@ -77,13 +92,29 @@ function loadDeferredData({context, params}: LoaderFunctionArgs) {
 }
 
 export default function Product() {
-  const {product} = useLoaderData<typeof loader>();
+  const {product, completeTheLookProduct} = useLoaderData<typeof loader>();
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
     product.selectedOrFirstAvailableVariant,
     getAdjacentAndFirstAvailableVariants(product),
   );
+
+  // Only create completeTheLookSelectedVariant if completeTheLookProduct exists
+  const completeTheLookSelectedVariant = completeTheLookProduct
+    ? useOptimisticVariant(
+        completeTheLookProduct.selectedOrFirstAvailableVariant,
+        getAdjacentAndFirstAvailableVariants(completeTheLookProduct),
+      )
+    : null;
+
+  // Only get completeTheLookProductOptions if completeTheLookProduct exists
+  const completeTheLookProductOptions = completeTheLookProduct
+    ? getProductOptions({
+        ...completeTheLookProduct,
+        selectedOrFirstAvailableVariant: completeTheLookSelectedVariant,
+      })
+    : null;
 
   // Sets the search param to the selected variant without navigation
   // only when no search params are set in the url
@@ -95,7 +126,7 @@ export default function Product() {
     selectedOrFirstAvailableVariant: selectedVariant,
   });
 
-  const {title, descriptionHtml} = product;
+  const {title, descriptionHtml, metafield} = product;
 
   return (
     <div className="product">
@@ -111,14 +142,27 @@ export default function Product() {
           productOptions={productOptions}
           selectedVariant={selectedVariant}
         />
-        <br />
-        <br />
-        <p>
-          <strong>Description</strong>
-        </p>
-        <br />
-        <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
-        <br />
+
+        <div className="description border-b border-gray-200 pb-10">
+          <p className="text-lg font-bold">Description</p>
+          <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
+        </div>
+
+        {completeTheLookProduct && (
+          <div className="w-full grid max-w-[200px] mt-10">
+            <p className="text-lg font-bold">complete the look</p>
+            <ProductImage image={completeTheLookSelectedVariant?.image} />
+            <h3>{completeTheLookProduct?.title}</h3>
+            <ProductPrice
+              price={completeTheLookSelectedVariant?.price}
+              compareAtPrice={completeTheLookSelectedVariant?.compareAtPrice}
+            />
+            <ProductForm
+              productOptions={completeTheLookProductOptions!}
+              selectedVariant={completeTheLookSelectedVariant}
+            />
+          </div>
+        )}
       </div>
       <Analytics.ProductView
         data={{
@@ -186,6 +230,9 @@ const PRODUCT_FRAGMENT = `#graphql
     description
     encodedVariantExistence
     encodedVariantAvailability
+    metafield(namespace:"custom",key:"complete_the_look") {
+      value
+    }
     options {
       name
       optionValues {
@@ -220,11 +267,25 @@ const PRODUCT_FRAGMENT = `#graphql
 const PRODUCT_QUERY = `#graphql
   query Product(
     $country: CountryCode
-    $handle: String!
+    $handle: String
     $language: LanguageCode
     $selectedOptions: [SelectedOptionInput!]!
   ) @inContext(country: $country, language: $language) {
     product(handle: $handle) {
+      ...Product
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+` as const;
+
+const COMPLETE_THE_LOOK_PRODUCT_QUERY = `#graphql
+  query CompleteTheLookProduct(
+    $country: CountryCode
+    $id: ID
+    $language: LanguageCode
+    $selectedOptions: [SelectedOptionInput!]!
+  ) @inContext(country: $country, language: $language) {
+    product(id: $id) {
       ...Product
     }
   }
