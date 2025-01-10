@@ -163,6 +163,32 @@ export default function Product() {
       <ProductImage image={selectedVariant?.image} />
       <div className="product-main">
         <h1>{title}</h1>
+        <div>
+          {datoContent ? (
+            datoContent.map((item: any) => {
+              if (item.__typename === 'RichTextRecord') {
+                return (
+                  <p
+                    className="text-sm font-medium !mb-4"
+                    key={item}
+                    dangerouslySetInnerHTML={{__html: item.textContent}}
+                  />
+                );
+              }
+              if (item.__typename === 'BulletRecord') {
+                return (
+                  <p
+                    className="text-sm font-medium"
+                    key={item}
+                    dangerouslySetInnerHTML={{__html: item.content}}
+                  />
+                );
+              }
+            })
+          ) : (
+            <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
+          )}
+        </div>
         <ProductPrice
           price={selectedVariant?.price}
           compareAtPrice={selectedVariant?.compareAtPrice}
@@ -172,11 +198,6 @@ export default function Product() {
           productOptions={productOptions}
           selectedVariant={selectedVariant}
         />
-
-        <div className="description border-b border-gray-200 pb-10">
-          <p className="text-lg font-bold">Description</p>
-          <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
-        </div>
 
         {completeTheLookProduct && (
           <div className="w-full grid max-w-[200px] mt-10">
