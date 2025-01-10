@@ -75,7 +75,6 @@ async function loadCriticalData({
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.DATO_API_TOKEN}`,
-        // Add cache control header for better performance
         'Cache-Control': 'max-age=300', // Cache for 5 minutes
       },
       body: JSON.stringify({
