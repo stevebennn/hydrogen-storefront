@@ -1,6 +1,5 @@
 import React from 'react';
 
-// Create a new ButtonWrapper component
 interface WrapperProps {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   type: 'submit' | 'button';
