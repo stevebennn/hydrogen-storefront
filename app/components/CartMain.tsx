@@ -41,9 +41,20 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
               <CartForm
                 route="/cart"
                 action={CartForm.ACTIONS.LinesRemove}
-                inputs={{ lineIds: cart.lines.nodes.map(item => item.id) }} // No inputs needed for clearing the cart
+                inputs={{ lineIds: cart.lines.nodes.map(item => item.id) }}
               >
-                <button className="bg-stone-600 hover:bg-stone-800 cursor-pointer transition-bg duration-200 text-white py-1 px-3 rounded-md" type="submit">Clear Cart</button>
+                <button
+                  className="bg-stone-600 hover:bg-stone-800 cursor-pointer transition-bg duration-200 text-white py-1 px-3 rounded-md"
+                  type="submit"
+                  aria-label="Clear all items from cart"
+                  onClick={(e) => {
+                    if (!window.confirm('Are you sure you want to remove all items from your cart?')) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  <span aria-hidden="true">Clear Cart</span>
+                </button>
               </CartForm>
             }
           </ul>
