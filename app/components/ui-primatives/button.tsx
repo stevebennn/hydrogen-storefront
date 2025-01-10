@@ -1,17 +1,13 @@
 import React from 'react';
 
-type Props = {
-  label: string;
-};
-
 // Create a new ButtonWrapper component
-type WrapperProps = {
+interface WrapperProps {
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   type: 'submit' | 'button';
   ariaLabel: string;
   label: string;
   style: 'primary' | 'secondary';
-};
+}
 
 export function Button({label, onClick, type, ariaLabel, style}: WrapperProps) {
   return (
