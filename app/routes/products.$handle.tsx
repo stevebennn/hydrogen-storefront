@@ -42,7 +42,7 @@ async function loadCriticalData({
   request,
 }: LoaderFunctionArgs) {
   const {handle} = params;
-  const {storefront} = context;
+  const {storefront, env} = context;
 
   if (!handle) {
     throw new Error('Expected product handle to be defined');
@@ -52,8 +52,6 @@ async function loadCriticalData({
     storefront.query(PRODUCT_QUERY, {
       variables: {handle, selectedOptions: getSelectedProductOptions(request)},
     }),
-
-    // Add other queries here, so that they are loaded in parallel
   ]);
 
   let completeTheLookProduct = null;
@@ -69,6 +67,34 @@ async function loadCriticalData({
     ).product;
   }
 
+  // Simple fetch to DatoCMS GraphQL API
+  const dato = await fetch('https://graphql.datocms.com/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${env.DATO_API_TOKEN}`,
+    },
+    body: JSON.stringify({
+      query: `
+          query DatoQuery ($handle: String!) {
+            detail(filter: {slug: {eq:$handle}}) {
+              title
+              content {
+              __typename
+              ... on RichTextRecord {
+                  textContent
+                }
+                ... on BulletRecord {
+                  content
+                }
+              }
+            }
+          }
+        `,
+      variables: {handle: `/${handle}`},
+    }),
+  }).then((res) => res.json());
+
   if (!product?.id) {
     throw new Response(null, {status: 404});
   }
@@ -76,6 +102,7 @@ async function loadCriticalData({
   return {
     product,
     completeTheLookProduct,
+    datoContent: dato?.data?.detail?.content || null, // Get first matching item or null
   };
 }
 
@@ -92,7 +119,10 @@ function loadDeferredData({context, params}: LoaderFunctionArgs) {
 }
 
 export default function Product() {
-  const {product, completeTheLookProduct} = useLoaderData<typeof loader>();
+  const {product, completeTheLookProduct, datoContent} =
+    useLoaderData<typeof loader>();
+
+  console.log(datoContent);
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
