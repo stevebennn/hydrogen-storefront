@@ -42,7 +42,7 @@ async function loadCriticalData({
   request,
 }: LoaderFunctionArgs) {
   const {handle} = params;
-  const {storefront} = context;
+  const {storefront, env} = context;
 
   if (!handle) {
     throw new Error('Expected product handle to be defined');
@@ -52,8 +52,6 @@ async function loadCriticalData({
     storefront.query(PRODUCT_QUERY, {
       variables: {handle, selectedOptions: getSelectedProductOptions(request)},
     }),
-
-    // Add other queries here, so that they are loaded in parallel
   ]);
 
   let completeTheLookProduct = null;
@@ -69,6 +67,53 @@ async function loadCriticalData({
     ).product;
   }
 
+  // Fetch product details from DatoCMS
+  let datoContent = null;
+  try {
+    const dato = await fetch('https://graphql.datocms.com/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.DATO_API_TOKEN}`,
+        'Cache-Control': 'max-age=300', // Cache for 5 minutes
+      },
+      body: JSON.stringify({
+        query: `
+          query DatoQuery ($handle: String!) {
+            detail(filter: {slug: {eq:$handle}}) {
+              title
+              content {
+                __typename
+                ... on RichTextRecord {
+                  textContent
+                }
+                ... on BulletRecord {
+                  content
+                }
+              }
+            }
+          }
+        `,
+        variables: {handle: `/${handle}`},
+      }),
+    });
+
+    if (!dato.ok) {
+      throw new Error(`DatoCMS API responded with status: ${dato.status}`);
+    }
+
+    const data = await dato.json();
+    if (data.errors) {
+      throw new Error(`DatoCMS GraphQL Error: ${data.errors[0].message}`);
+    }
+
+    datoContent = data?.data?.detail?.content || null;
+  } catch (error) {
+    console.error('Error fetching from DatoCMS:', error);
+    // Don't throw the error since this is non-critical content
+    datoContent = null;
+  }
+
   if (!product?.id) {
     throw new Response(null, {status: 404});
   }
@@ -76,6 +121,7 @@ async function loadCriticalData({
   return {
     product,
     completeTheLookProduct,
+    datoContent,
   };
 }
 
@@ -92,7 +138,8 @@ function loadDeferredData({context, params}: LoaderFunctionArgs) {
 }
 
 export default function Product() {
-  const {product, completeTheLookProduct} = useLoaderData<typeof loader>();
+  const {product, completeTheLookProduct, datoContent} =
+    useLoaderData<typeof loader>();
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
@@ -133,6 +180,32 @@ export default function Product() {
       <ProductImage image={selectedVariant?.image} />
       <div className="product-main">
         <h1>{title}</h1>
+        <div>
+          {datoContent ? (
+            datoContent.map((item: any) => {
+              if (item.__typename === 'RichTextRecord') {
+                return (
+                  <p
+                    className="text-sm font-medium !mb-4"
+                    key={item}
+                    dangerouslySetInnerHTML={{__html: item.textContent}}
+                  />
+                );
+              }
+              if (item.__typename === 'BulletRecord') {
+                return (
+                  <p
+                    className="text-sm font-medium"
+                    key={item}
+                    dangerouslySetInnerHTML={{__html: item.content}}
+                  />
+                );
+              }
+            })
+          ) : (
+            <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
+          )}
+        </div>
         <ProductPrice
           price={selectedVariant?.price}
           compareAtPrice={selectedVariant?.compareAtPrice}
@@ -142,11 +215,6 @@ export default function Product() {
           productOptions={productOptions}
           selectedVariant={selectedVariant}
         />
-
-        <div className="description border-b border-gray-200 pb-10">
-          <p className="text-lg font-bold">Description</p>
-          <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
-        </div>
 
         {completeTheLookProduct && (
           <div className="w-full grid max-w-[200px] mt-10">
