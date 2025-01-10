@@ -67,21 +67,25 @@ async function loadCriticalData({
     ).product;
   }
 
-  // Simple fetch to DatoCMS GraphQL API
-  const dato = await fetch('https://graphql.datocms.com/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${env.DATO_API_TOKEN}`,
-    },
-    body: JSON.stringify({
-      query: `
+  // Fetch product details from DatoCMS
+  let datoContent = null;
+  try {
+    const dato = await fetch('https://graphql.datocms.com/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${env.DATO_API_TOKEN}`,
+        // Add cache control header for better performance
+        'Cache-Control': 'max-age=300', // Cache for 5 minutes
+      },
+      body: JSON.stringify({
+        query: `
           query DatoQuery ($handle: String!) {
             detail(filter: {slug: {eq:$handle}}) {
               title
               content {
-              __typename
-              ... on RichTextRecord {
+                __typename
+                ... on RichTextRecord {
                   textContent
                 }
                 ... on BulletRecord {
@@ -91,9 +95,25 @@ async function loadCriticalData({
             }
           }
         `,
-      variables: {handle: `/${handle}`},
-    }),
-  }).then((res) => res.json());
+        variables: {handle: `/${handle}`},
+      }),
+    });
+
+    if (!dato.ok) {
+      throw new Error(`DatoCMS API responded with status: ${dato.status}`);
+    }
+
+    const data = await dato.json();
+    if (data.errors) {
+      throw new Error(`DatoCMS GraphQL Error: ${data.errors[0].message}`);
+    }
+
+    datoContent = data?.data?.detail?.content || null;
+  } catch (error) {
+    console.error('Error fetching from DatoCMS:', error);
+    // Don't throw the error since this is non-critical content
+    datoContent = null;
+  }
 
   if (!product?.id) {
     throw new Response(null, {status: 404});
@@ -102,7 +122,7 @@ async function loadCriticalData({
   return {
     product,
     completeTheLookProduct,
-    datoContent: dato?.data?.detail?.content || null, // Get first matching item or null
+    datoContent,
   };
 }
 
@@ -121,8 +141,6 @@ function loadDeferredData({context, params}: LoaderFunctionArgs) {
 export default function Product() {
   const {product, completeTheLookProduct, datoContent} =
     useLoaderData<typeof loader>();
-
-  console.log(datoContent);
 
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
