@@ -4,6 +4,7 @@ import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {useAside} from '~/components/Aside';
 import {CartLineItem} from '~/components/CartLineItem';
 import {CartSummary} from './CartSummary';
+import {Button} from './ui-primatives/button';
 
 export type CartLayout = 'page' | 'aside';
 
@@ -37,26 +38,29 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
             {(cart?.lines?.nodes ?? []).map((line) => (
               <CartLineItem key={line.id} line={line} layout={layout} />
             ))}
-            {cart?.totalQuantity! > 0 &&
+            {cart?.totalQuantity! > 0 && (
               <CartForm
                 route="/cart"
                 action={CartForm.ACTIONS.LinesRemove}
-                inputs={{ lineIds: cart.lines.nodes.map(item => item.id) }}
+                inputs={{lineIds: cart.lines.nodes.map((item) => item.id)}}
               >
-                <button
-                  className="bg-stone-600 hover:bg-stone-800 cursor-pointer transition-bg duration-200 text-white py-1 px-3 rounded-md"
-                  type="submit"
-                  aria-label="Clear all items from cart"
+                <Button
+                  style="secondary"
+                  label="Clear Cart"
                   onClick={(e) => {
-                    if (!window.confirm('Are you sure you want to remove all items from your cart?')) {
+                    if (
+                      !window.confirm(
+                        'Are you sure you want to remove all items from your cart?',
+                      )
+                    ) {
                       e.preventDefault();
                     }
                   }}
-                >
-                  <span aria-hidden="true">Clear Cart</span>
-                </button>
+                  type="submit"
+                  ariaLabel="Clear all items from cart"
+                />
               </CartForm>
-            }
+            )}
           </ul>
         </div>
         {cartHasItems && <CartSummary cart={cart} layout={layout} />}
