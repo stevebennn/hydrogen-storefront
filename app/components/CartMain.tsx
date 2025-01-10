@@ -1,4 +1,4 @@
-import {useOptimisticCart} from '@shopify/hydrogen';
+import {CartForm, useOptimisticCart} from '@shopify/hydrogen';
 import {Link} from '@remix-run/react';
 import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {useAside} from '~/components/Aside';
@@ -37,6 +37,15 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
             {(cart?.lines?.nodes ?? []).map((line) => (
               <CartLineItem key={line.id} line={line} layout={layout} />
             ))}
+            {cart?.totalQuantity! > 0 &&
+              <CartForm
+                route="/cart"
+                action={CartForm.ACTIONS.LinesRemove}
+                inputs={{ lineIds: cart.lines.nodes.map(item => item.id) }} // No inputs needed for clearing the cart
+              >
+                <button className="bg-stone-600 hover:bg-stone-800 cursor-pointer transition-bg duration-200 text-white py-1 px-3 rounded-md" type="submit">Clear Cart</button>
+              </CartForm>
+            }
           </ul>
         </div>
         {cartHasItems && <CartSummary cart={cart} layout={layout} />}
