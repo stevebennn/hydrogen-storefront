@@ -4,7 +4,7 @@ import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {useAside} from '~/components/Aside';
 import {CartLineItem} from '~/components/CartLineItem';
 import {CartSummary} from './CartSummary';
-import {Button} from './visual-components/button';
+import {Button} from './ui-primatives/button';
 
 export type CartLayout = 'page' | 'aside';
 
@@ -45,6 +45,7 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
                 inputs={{lineIds: cart.lines.nodes.map((item) => item.id)}}
               >
                 <Button
+                  style="secondary"
                   label="Clear Cart"
                   onClick={(e) => {
                     if (
