@@ -1,14 +1,30 @@
 import React from 'react';
 
 interface WrapperProps {
-  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onClick:
+    | (() => void)
+    | ((e: React.MouseEvent<HTMLButtonElement>) => void)
+    | undefined;
   type: 'submit' | 'button';
   ariaLabel: string;
   label: string;
   style: 'primary' | 'secondary';
+  disabled?: boolean;
 }
 
-export function Button({label, onClick, type, ariaLabel, style}: WrapperProps) {
+export function Button({
+  label,
+  onClick,
+  type,
+  ariaLabel,
+  style,
+  disabled,
+}: WrapperProps) {
+  const handleClick = onClick
+    ? (e: React.MouseEvent<HTMLButtonElement>) => {
+        if (typeof onClick === 'function') onClick(e);
+      }
+    : undefined;
   return (
     <button
       className={`cursor-pointer transition-bg duration-200  py-1 px-3 rounded-md ${
@@ -18,7 +34,8 @@ export function Button({label, onClick, type, ariaLabel, style}: WrapperProps) {
       }`}
       type={type}
       aria-label={ariaLabel}
-      onClick={onClick}
+      onClick={handleClick}
+      disabled={disabled}
     >
       <span aria-hidden="true">{label}</span>
     </button>
