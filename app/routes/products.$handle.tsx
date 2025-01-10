@@ -101,12 +101,12 @@ export default function Product() {
   );
 
   // Only create completeTheLookSelectedVariant if completeTheLookProduct exists
-  const completeTheLookSelectedVariant = completeTheLookProduct
-    ? useOptimisticVariant(
-        completeTheLookProduct.selectedOrFirstAvailableVariant,
-        getAdjacentAndFirstAvailableVariants(completeTheLookProduct),
-      )
-    : null;
+  const completeTheLookSelectedVariant = useOptimisticVariant(
+    completeTheLookProduct?.selectedOrFirstAvailableVariant ?? null,
+    completeTheLookProduct
+      ? getAdjacentAndFirstAvailableVariants(completeTheLookProduct)
+      : null,
+  );
 
   // Only get completeTheLookProductOptions if completeTheLookProduct exists
   const completeTheLookProductOptions = completeTheLookProduct
